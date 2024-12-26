@@ -28,6 +28,34 @@ public interface CarHistoryRepository extends JpaRepository<CarHistory, Long> {
     Page<CarHistory> getAllPage(Pageable pageable);
 
     @Query(value = """
+        WITH DataWithLag AS (
+            SELECT *, LAG(date) OVER (ORDER BY date) AS prev_date
+            FROM car_history ch
+            WHERE date >= ?1 AND date <= ?2 AND plate_number = ?3
+        ),
+        FlaggedData AS (
+            SELECT *, 
+            CASE 
+                WHEN prev_date IS NULL OR date - prev_date > MAKE_INTERVAL(mins => ?4) THEN 1 
+                ELSE 0 
+            END AS is_new_group
+            FROM DataWithLag
+        ),
+        GroupedData AS (
+            SELECT *, SUM(is_new_group) OVER (ORDER BY date) AS group_id
+            FROM FlaggedData
+        )
+        SELECT 
+            MIN(date) AS first_date,
+            MAX(date) AS last_date,
+            COUNT(*) AS count_between,
+            EXTRACT(EPOCH FROM MAX(date) - MIN(date)) / 60 AS minutes
+        FROM GroupedData
+        GROUP BY group_id
+        ORDER BY first_date
+    """, nativeQuery = true)
+    List<Object[]> getCarHistoryDay(LocalDateTime startDate, LocalDateTime endDate, String plateNumber, int interval);
+    @Query(value = """
             with DataWithLag as(
             	select *, LAG(date) over (order by date) as prev_date
             	from car_history ch\s
@@ -53,5 +81,6 @@ public interface CarHistoryRepository extends JpaRepository<CarHistory, Long> {
             	order by first_date
     """, nativeQuery = true)
     List<Object[]> getCarHistoryDay(LocalDate date);
+
     List<CarHistory> findByDateBetweenAndPlateNumber(LocalDateTime startDate, LocalDateTime endDate, String plateNumber);
 }

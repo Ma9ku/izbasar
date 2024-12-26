@@ -1,5 +1,6 @@
 package kz.dossier.izbasar.controller;
 import kz.dossier.izbasar.dto.CarHistoryDayStatsDto;
+import kz.dossier.izbasar.dto.CarHistoryDetailedViewDto;
 import kz.dossier.izbasar.dto.CarHistoryStatsDTO;
 import kz.dossier.izbasar.model.CarHistory;
 import kz.dossier.izbasar.service.CarHistoryService;
@@ -40,6 +41,11 @@ public class CarHistoryController {
     @GetMapping("/day-stats")
     public List<CarHistoryDayStatsDto> getCarHistoryDayStats(@RequestParam String date) {
         return service.getCarHistoryDatStats(date);
+    }
+
+    @GetMapping("/day-stats-detailed")
+    public List<CarHistoryDetailedViewDto> getCarHistoryDayStats(@RequestParam String startDate, @RequestParam String endDate, @RequestParam String plateNumber, @RequestParam Integer interval) {
+        return service.carHistoryDetailedViewDtos(startDate, endDate ,plateNumber, interval);
     }
     @GetMapping("/day-stats-collapse")
     public List<CarHistory> getCarHistoryBetweenDates(@RequestParam String startDate, @RequestParam String endDate,@RequestParam String plateNumber){

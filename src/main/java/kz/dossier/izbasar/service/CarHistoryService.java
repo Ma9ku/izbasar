@@ -1,6 +1,7 @@
 package kz.dossier.izbasar.service;
 
 import kz.dossier.izbasar.dto.CarHistoryDayStatsDto;
+import kz.dossier.izbasar.dto.CarHistoryDetailedViewDto;
 import kz.dossier.izbasar.dto.CarHistoryStatsDTO;
 import kz.dossier.izbasar.model.CarHistory;
 import kz.dossier.izbasar.repository.CarHistoryRepository;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -53,6 +55,27 @@ public class CarHistoryService {
                 ((Number) row[3]).intValue()
         )).collect(Collectors.toList());
     }
+
+    public List<CarHistoryDetailedViewDto> carHistoryDetailedViewDtos(String startDate, String endDate, String plateNumber, Integer interval){
+        List<Object[]> results = repository.getCarHistoryDay(LocalDateTime.parse(startDate), LocalDateTime.parse(endDate), plateNumber, interval);
+        List<CarHistoryDetailedViewDto> carHistoryDetailedViewDtos = new ArrayList<>();
+        List<CarHistoryDayStatsDto> carHistoryDayStatsDtos = results.stream().map(row -> new CarHistoryDayStatsDto(
+                ((java.sql.Timestamp) row[0]).toLocalDateTime(),
+                ((java.sql.Timestamp) row[1]).toLocalDateTime(),
+                ((Number) row[2]).intValue(),
+                ((Number) row[3]).intValue()
+        )).collect(Collectors.toList());
+
+        for(CarHistoryDayStatsDto carHistoryDayStatsDto: carHistoryDayStatsDtos){
+            CarHistoryDetailedViewDto carHistoryDetailedViewDto = new CarHistoryDetailedViewDto();
+            List<CarHistory> carHistories = repository.findByDateBetweenAndPlateNumber(carHistoryDayStatsDto.getFirstDate(), carHistoryDayStatsDto.getLastDate(),plateNumber);
+            carHistoryDetailedViewDto.setCarHistoryDayStatsDtos(carHistoryDayStatsDto);
+            carHistoryDetailedViewDto.setCarHistory(carHistories);
+            carHistoryDetailedViewDtos.add(carHistoryDetailedViewDto);
+        }
+        return carHistoryDetailedViewDtos;
+    }
+
     public Optional<CarHistory> getCarHistoryById(Long id) {
         return repository.findById(id);
     }
