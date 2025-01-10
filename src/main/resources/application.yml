@@ -3,3 +3,12 @@ spring:
     url: jdbc:postgresql://192.168.122.129:5432/sergek
     password: 12345
     username: sergek_user
+#logging:
+#  level:
+#    org:
+#      springframework:
+#        web: DEBUG
+#      hibernate: DEBUG
+#    kz:
+#      dossier:
+#        izbasar: DEBUG

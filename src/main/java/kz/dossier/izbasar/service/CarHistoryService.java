@@ -1,8 +1,6 @@
 package kz.dossier.izbasar.service;
 
-import kz.dossier.izbasar.dto.CarHistoryDayStatsDto;
-import kz.dossier.izbasar.dto.CarHistoryDetailedViewDto;
-import kz.dossier.izbasar.dto.CarHistoryStatsDTO;
+import kz.dossier.izbasar.dto.*;
 import kz.dossier.izbasar.model.CarHistory;
 import kz.dossier.izbasar.repository.CarHistoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,12 +8,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.sql.Date;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.time.Year;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,6 +22,69 @@ public class CarHistoryService {
 
     @Autowired
     private CarHistoryRepository repository;
+    @Autowired
+    private FixationService fixationService;
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    public List<FixationGroupDto> getGroups(String plateNumber, String date) {
+        LocalDate dt = LocalDate.parse(date);
+        List<CarHistory> carHistories = repository.getFixationsForDate(plateNumber, dt);
+
+        List<FixationGroupDto> groups = fixationService.groupFixations(carHistories);
+
+        return groups;
+    }
+    public List<Date> getFixationsDays(String plateNumber) {
+
+        List<Date> fixationDates = repository.getDays(plateNumber);
+
+        return fixationDates;
+    }
+    public List<YearAndMonthsAppearanceDto> getMonthsAppearance(String dateFrom, String dateTo, String plateNumber) {
+        // Convert string dates to LocalDate
+        LocalDate from = LocalDate.parse(dateFrom);
+        LocalDate to = LocalDate.parse(dateTo);
+
+        // Execute the query
+        List<Object[]> queryResults = repository.getAppearanceByMonths(plateNumber, from, to);
+
+        // Process the results
+        Map<Integer, List<Integer>> yearToMonthsMap = new HashMap<>();
+
+        for (Object[] result : queryResults) {
+            Integer year = ((Number) result[0]).intValue();
+            Integer month = ((Number) result[1]).intValue();
+
+            yearToMonthsMap
+                    .computeIfAbsent(year, k -> new ArrayList<>())
+                    .add(month);
+        }
+
+        // Convert the map into a list of YearAndMonthsAppearanceDto
+        return yearToMonthsMap.entrySet().stream()
+                .map(entry -> new YearAndMonthsAppearanceDto(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+    }
+
+    public List<CarHistoryStatsDTO> getCarHistoryStats(String dateFrom, String dateTo, String plateNumber) {
+        LocalDate parsedDateFrom = LocalDate.parse(dateFrom, DATE_FORMATTER);
+        LocalDate parsedDateTo = LocalDate.parse(dateTo, DATE_FORMATTER);
+        List<Object[]> results = repository.getStatsByPlateAndDate(parsedDateFrom, parsedDateTo, plateNumber);
+        List<CarHistoryStatsDTO> stats = new ArrayList<>();
+
+        for (Object[] row : results) {
+            // Convert java.sql.Date to LocalDate properly
+            LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
+            CarHistoryStatsDTO dto = new CarHistoryStatsDTO(date,
+                    (Long) row[1],
+                    ((Timestamp) row[2]).toLocalDateTime(),
+                    ((Timestamp) row[3]).toLocalDateTime());
+            stats.add(dto);
+        }
+
+        return stats;
+    }
+
 
     public List<CarHistory> getAllCarHistories() {
         return repository.findAll();

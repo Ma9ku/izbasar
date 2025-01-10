@@ -5,14 +5,66 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
 public interface CarHistoryRepository extends JpaRepository<CarHistory, Long> {
+
+    @Query(value = "SELECT \n" +
+            "    EXTRACT(YEAR FROM date) AS year,\n" +
+            "    EXTRACT(MONTH FROM date) AS month\n" +
+            "FROM \n" +
+            "    car_history\n" +
+            "WHERE \n" +
+            "    plate_number = ?1 \n" +
+            "    AND date >= ?2 AND date <= ?3" +
+            "GROUP BY \n" +
+            "    EXTRACT(YEAR FROM date), EXTRACT(MONTH FROM date)\n" +
+            "ORDER BY \n" +
+            "    year, month;\n", nativeQuery = true)
+    List<Object[]> getAppearanceByMonths(String plateNumber, LocalDate dateFrom,
+                                         LocalDate dateTo);
+
+    @Query(value = "SELECT DISTINCT CAST(\"date\" AS DATE) AS fixation_date\n" +
+            "FROM car_history\n" +
+            "WHERE plate_number = ?1\n" + // Ensure the end date is included
+            "ORDER BY fixation_date;",
+            nativeQuery = true)
+    List<Date> getDays(String plateNumber);
+
+    @Query(value = "SELECT *\n" +
+            "FROM car_history\n" +
+            "WHERE plate_number = ?1\n" +
+            "  AND DATE(\"date\") = ?2\n" +
+            "ORDER BY \"date\";",
+            nativeQuery = true)
+    List<CarHistory> getFixationsForDate(String plateNumber, LocalDate dateLocal);
+
+
+    @Query(value = "SELECT \n" +
+            "    DATE(date) AS record_date,\n" +
+            "    COUNT(*) AS record_count,\n" +
+            "    MIN(date) AS start_time,\n" +
+            "    MAX(date) AS end_time\n" +
+            "FROM \n" +
+            "    car_history\n" +
+            "WHERE\n" +
+            "    DATE(date) >= ?1 AND DATE(date) <= ?2\n" +
+            "    AND plate_number = ?3\n" +
+            "GROUP BY \n" +
+            "    DATE(date)\n" +
+            "ORDER BY \n" +
+            "    record_date;\n", nativeQuery = true)
+    List<Object[]> getStatsByPlateAndDate(LocalDate dateFrom,
+                                          LocalDate dateTo,
+                                          String plateNumber);
+
     @Query(value = """
             SELECT 
                 DATE(date) as record_date, 
