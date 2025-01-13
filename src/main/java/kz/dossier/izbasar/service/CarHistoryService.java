@@ -3,6 +3,7 @@ package kz.dossier.izbasar.service;
 import kz.dossier.izbasar.dto.*;
 import kz.dossier.izbasar.model.CarHistory;
 import kz.dossier.izbasar.repository.CarHistoryRepository;
+import kz.dossier.izbasar.repository.MobileOperRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,8 @@ public class CarHistoryService {
     private CarHistoryRepository repository;
     @Autowired
     private FixationService fixationService;
+    @Autowired
+    private MobileOperRepo mobileOperRepo;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     public List<FixationGroupDto> getGroups(String plateNumber, String date) {
@@ -66,6 +69,119 @@ public class CarHistoryService {
                 .collect(Collectors.toList());
     }
 
+    public Map<String, List<CarHistoryStatsDTO>> getGroups(List<Group> groups) {
+        DateTimeFormatter russianDateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy 'г.'", Locale.forLanguageTag("ru"));
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+        // Map to store the final result with group numbers as keys
+        Map<String, List<CarHistoryStatsDTO>> resultMap = new HashMap<>();
+
+        // List to store all stats for intersection processing
+        List<CarHistoryStatsDTO> allStats = new ArrayList<>();
+
+        // Fetch the stats based on group status and add them to allStats
+        for (Group a : groups) {
+            List<CarHistoryStatsDTO> stats;
+            if (a.getStatus()) {
+                // Get car history stats if status is true
+                stats = getCarHistoryStats(a.getDateFrom(), a.getDateTo(), a.getNumber());
+            } else {
+                // Get mobile history stats if status is false
+                stats = getMobHistoryStats(a.getDateFrom(), a.getDateTo(), a.getNumber());
+            }
+
+            // Add group number to each DTO for easy access later
+            for (CarHistoryStatsDTO dto : stats) {
+                dto.setNumber(a.getNumber()); // Assuming CarHistoryStatsDTO has setGroupNumber method
+            }
+
+            allStats.addAll(stats); // Collect all stats for intersection processing
+
+            // Add stats to result map using the group's number as the key
+            resultMap.put(a.getNumber(), stats);
+        }
+
+        // Group the stats by dateLocal for intersection processing
+        Map<LocalDate, List<CarHistoryStatsDTO>> groupedByDate = allStats.stream()
+                .collect(Collectors.groupingBy(CarHistoryStatsDTO::getDateLocal));
+
+        // For each date, check for intersections and handle combined stats
+        for (Map.Entry<LocalDate, List<CarHistoryStatsDTO>> entry : groupedByDate.entrySet()) {
+            LocalDate date = entry.getKey();
+            List<CarHistoryStatsDTO> intersectingStats = entry.getValue();
+
+            // Combine fixCount and find min/max times for the intersections
+            long combinedFixCount = intersectingStats.stream()
+                    .mapToLong(CarHistoryStatsDTO::getFixCount)
+                    .sum();
+
+            LocalDateTime minStartDate = intersectingStats.stream()
+                    .map(CarHistoryStatsDTO::getStartDate)
+                    .min(LocalDateTime::compareTo)
+                    .orElse(null);
+
+            LocalDateTime maxEndDate = intersectingStats.stream()
+                    .map(CarHistoryStatsDTO::getEndDate)
+                    .max(LocalDateTime::compareTo)
+                    .orElse(null);
+
+            // Create the combined intersection DTO
+            CarHistoryStatsDTO intersectionDTO = new CarHistoryStatsDTO();
+            intersectionDTO.setDateLocal(date);
+            intersectionDTO.setFixCount(combinedFixCount);
+            intersectionDTO.setStartDate(minStartDate);
+            intersectionDTO.setEndDate(maxEndDate);
+            intersectionDTO.setDate(date != null ? date.format(russianDateFormatter) : null);
+            intersectionDTO.setTimeStart((minStartDate != null) ? minStartDate.toLocalTime().format(timeFormatter) : null);
+            intersectionDTO.setTimeEnd((maxEndDate != null) ? maxEndDate.toLocalTime().format(timeFormatter) : null);
+            intersectionDTO.setType("intersections");
+
+            // Generate the intersection key based on the group numbers, ensuring no duplicates
+            Set<String> groupNumbers = intersectingStats.stream()
+                    .map(dto -> dto.getNumber()) // Use groupNumber
+                    .distinct() // Remove duplicates
+                    .collect(Collectors.toSet());
+
+            // If there's an intersection, we create a new key with a combination of group numbers
+            if (groupNumbers.size() > 1) {
+                String intersectionKey = String.join("+", groupNumbers);
+                resultMap.put(intersectionKey, Collections.singletonList(intersectionDTO));
+            }
+
+            // Add individual group stats to the result map if not already added
+            for (String groupNumber : groupNumbers) {
+                if (!resultMap.containsKey(groupNumber)) {
+                    List<CarHistoryStatsDTO> groupStats = intersectingStats.stream()
+                            .filter(dto -> dto.getNumber().equals(groupNumber))
+                            .collect(Collectors.toList());
+                    resultMap.put(groupNumber, groupStats);
+                }
+            }
+        }
+
+        // Return the map with group numbers as keys and lists of CarHistoryStatsDTO as values
+        return resultMap;
+    }
+
+
+    public List<CarHistoryStatsDTO> getMobHistoryStats(String dateFrom, String dateTo, String number) {
+        LocalDate parsedDateFrom = LocalDate.parse(dateFrom, DATE_FORMATTER);
+        LocalDate parsedDateTo = LocalDate.parse(dateTo, DATE_FORMATTER);
+        List<Object[]> results = mobileOperRepo.getStatsByNumberAndDate(parsedDateFrom, parsedDateTo, number);
+        List<CarHistoryStatsDTO> stats = new ArrayList<>();
+
+        for (Object[] row : results) {
+            // Convert java.sql.Date to LocalDate properly
+            LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
+            CarHistoryStatsDTO dto = new CarHistoryStatsDTO(date,
+                    (Long) row[1],
+                    ((Timestamp) row[2]).toLocalDateTime(),
+                    ((Timestamp) row[3]).toLocalDateTime(), "phone");
+            stats.add(dto);
+        }
+
+        return stats;
+    }
     public List<CarHistoryStatsDTO> getCarHistoryStats(String dateFrom, String dateTo, String plateNumber) {
         LocalDate parsedDateFrom = LocalDate.parse(dateFrom, DATE_FORMATTER);
         LocalDate parsedDateTo = LocalDate.parse(dateTo, DATE_FORMATTER);

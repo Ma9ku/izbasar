@@ -15,9 +15,30 @@ public class CarHistoryStatsDTO {
     private Long fixCount;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
-
     private String timeStart;
     private String timeEnd;
+    private String type;
+
+    private String number;
+
+    public String getNumber() {
+        return number;
+    }
+
+    public void setNumber(String number) {
+        this.number = number;
+    }
+
+    public CarHistoryStatsDTO() {
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
 
     // Constructor
 
@@ -26,6 +47,21 @@ public class CarHistoryStatsDTO {
         this.fixCount = recordCount;
         this.startDate = startTime;
         this.endDate = endDate;
+        this.type = "car";
+
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+        this.timeStart = (startTime != null) ? startTime.toLocalTime().format(timeFormatter) : null;
+        this.timeEnd = (endDate != null) ? endDate.toLocalTime().format(timeFormatter) : null;
+
+        DateTimeFormatter russianDateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy 'г.'", Locale.forLanguageTag("ru"));
+        this.date = (recordDate != null) ? recordDate.format(russianDateFormatter) : null;
+    }
+    public CarHistoryStatsDTO(LocalDate recordDate, Long recordCount, LocalDateTime startTime, LocalDateTime endDate, String type) {
+        this.dateLocal = recordDate;
+        this.fixCount = recordCount;
+        this.startDate = startTime;
+        this.endDate = endDate;
+        this.type = type;
 
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
         this.timeStart = (startTime != null) ? startTime.toLocalTime().format(timeFormatter) : null;

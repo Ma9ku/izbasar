@@ -15,6 +15,7 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -29,6 +30,14 @@ public class CarHistoryController {
     @GetMapping("/get-file-summaries")
     public ResponseEntity<List<FileSummaryDto>> getFileSummaries() {
         return ResponseEntity.ok(fileActionService.getSummaries());
+    }
+
+    @PostMapping("/get-stats-by-groups")
+    public ResponseEntity<Map<String, List<CarHistoryStatsDTO>>> getCarHistoryStatsByGroups(
+            @RequestBody List<Group> groups) {
+
+        Map<String, List<CarHistoryStatsDTO>> result = service.getGroups(groups);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/get-stats-by-plate-date")
