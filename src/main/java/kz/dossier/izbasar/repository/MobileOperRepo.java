@@ -25,4 +25,24 @@ public interface MobileOperRepo extends JpaRepository<MobileOperator, Long> {
     List<Object[]> getStatsByNumberAndDate(LocalDate dateFrom,
                                           LocalDate dateTo,
                                           String number);
+
+
+    @Query(value = "SELECT \n" +
+            "    EXTRACT(YEAR FROM time_period) AS year,\n" +
+            "    EXTRACT(MONTH FROM time_period) AS month\n" +
+            "FROM \n" +
+            "    mobile_operators\n" +
+            "WHERE \n" +
+            "    isdn_number = ?1\n" +
+            "    AND time_period >= ?2 \n" +
+            "    AND time_period <= ?3\n" +
+            "GROUP BY \n" +
+            "    EXTRACT(YEAR FROM time_period), EXTRACT(MONTH FROM time_period)\n" +
+            "ORDER BY \n" +
+            "    year, month;\n", nativeQuery = true)
+    List<Object[]> getAppearanceByMonths(String phoneNumber, LocalDate dateFrom,
+                                         LocalDate dateTo);
+
+    @Query(value = "SELECT * FROM mobile_operators WHERE isdn_number = ?1 AND DATE(time_period) = ?2", nativeQuery = true)
+    List<MobileOperator> getAll(String number, LocalDate date);
 }

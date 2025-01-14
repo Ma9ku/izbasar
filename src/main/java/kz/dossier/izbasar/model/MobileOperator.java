@@ -1,5 +1,6 @@
 package kz.dossier.izbasar.model;
 
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +17,7 @@ public class MobileOperator {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "source_operator", nullable = false)
+    @Column(name = "source_operatpr", nullable = false)
     private String sourceOperator;
 
     @Column(name = "isdn_number", nullable = false)
@@ -49,7 +50,7 @@ public class MobileOperator {
     @Column(name = "height")
     private String height;
 
-    @Column(name = "radius")
+    @Column(name = "radious")
     private String radius;
 
     @Column(name = "base_station_location")

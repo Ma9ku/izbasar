@@ -31,6 +31,13 @@ public interface CarHistoryRepository extends JpaRepository<CarHistory, Long> {
     List<Object[]> getAppearanceByMonths(String plateNumber, LocalDate dateFrom,
                                          LocalDate dateTo);
 
+    @Query(value = "SELECT *\n" +
+            "FROM \n" +
+            "    car_history\n" +
+            "WHERE \n" +
+            "    plate_number  = ?1 \n" +
+            "    AND DATE(date) = ?2;", nativeQuery = true)
+    List<CarHistory> getAll(String number, LocalDate date);
     @Query(value = "SELECT DISTINCT CAST(\"date\" AS DATE) AS fixation_date\n" +
             "FROM car_history\n" +
             "WHERE plate_number = ?1\n" + // Ensure the end date is included

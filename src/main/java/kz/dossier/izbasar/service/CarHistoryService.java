@@ -2,6 +2,7 @@ package kz.dossier.izbasar.service;
 
 import kz.dossier.izbasar.dto.*;
 import kz.dossier.izbasar.model.CarHistory;
+import kz.dossier.izbasar.model.MobileOperator;
 import kz.dossier.izbasar.repository.CarHistoryRepository;
 import kz.dossier.izbasar.repository.MobileOperRepo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import java.time.Year;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class CarHistoryService {
@@ -68,7 +70,31 @@ public class CarHistoryService {
                 .map(entry -> new YearAndMonthsAppearanceDto(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
     }
+    public List<YearAndMonthsAppearanceDto> getPhoneMonthsAppearance(String dateFrom, String dateTo, String number) {
+        // Convert string dates to LocalDate
+        LocalDate from = LocalDate.parse(dateFrom);
+        LocalDate to = LocalDate.parse(dateTo);
 
+        // Execute the query
+        List<Object[]> queryResults = mobileOperRepo.getAppearanceByMonths(number, from, to);
+
+        // Process the results
+        Map<Integer, List<Integer>> yearToMonthsMap = new HashMap<>();
+
+        for (Object[] result : queryResults) {
+            Integer year = ((Number) result[0]).intValue();
+            Integer month = ((Number) result[1]).intValue();
+
+            yearToMonthsMap
+                    .computeIfAbsent(year, k -> new ArrayList<>())
+                    .add(month);
+        }
+
+        // Convert the map into a list of YearAndMonthsAppearanceDto
+        return yearToMonthsMap.entrySet().stream()
+                .map(entry -> new YearAndMonthsAppearanceDto(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+    }
     public Map<String, List<CarHistoryStatsDTO>> getGroups(List<Group> groups) {
         DateTimeFormatter russianDateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy 'г.'", Locale.forLanguageTag("ru"));
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -200,6 +226,48 @@ public class CarHistoryService {
 
         return stats;
     }
+
+    public List<GenericFixationDto> getIntersection(String number, String date) {
+        // Split the number into car number and phone number
+        System.out.println(number);
+        String[] parts = number.split(" ");
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("Invalid number format. Expected format: CAR_NUMBER+PHONE_NUMBER");
+        }
+
+        String carNumber = parts[0];
+        String phoneNumber = parts[1];
+        LocalDate parsedDate = LocalDate.parse(date, DATE_FORMATTER);
+
+        // Parse the date
+        LocalDate targetDate = LocalDate.parse(date);
+        List<MobileOperator> phoneFixes = mobileOperRepo.getAll(phoneNumber, parsedDate);
+        List<CarHistory> carFixes = repository.getAll(carNumber, parsedDate);
+
+        // Find intersections based on date and combine results
+        List<GenericFixationDto> allFixations = new ArrayList<>();
+        for (MobileOperator a : phoneFixes) {
+            GenericFixationDto perm = new GenericFixationDto();
+            perm.setCoordinates(a.getWidth() + " " + a.getHeight());
+            perm.setCar(false);
+            perm.setAddress(a.getBaseStationLocation());
+            perm.setTime(a.getTimePeriod());
+
+            allFixations.add(perm);
+        }
+        for (CarHistory a : carFixes) {
+            GenericFixationDto perm = new GenericFixationDto();
+            perm.setCoordinates(a.getCoordinates());
+            perm.setCar(true);
+            perm.setAddress(a.getLocation());
+            perm.setTime(a.getDate());
+            perm.setImage(a.getPlateNumber());
+
+            allFixations.add(perm);
+        }
+        return allFixations;
+    }
+
 
 
     public List<CarHistory> getAllCarHistories() {

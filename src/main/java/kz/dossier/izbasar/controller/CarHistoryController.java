@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Repository;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.Date;
@@ -49,6 +50,15 @@ public class CarHistoryController {
         return ResponseEntity.ok(stats);
     }
 
+    @GetMapping("/get-stats-by-phone-number")
+    public ResponseEntity<List<CarHistoryStatsDTO>> getMobHistoryStats(
+            @RequestParam String number,
+            @RequestParam String dateFrom,
+            @RequestParam String dateTo) {
+        List<CarHistoryStatsDTO> stats = service.getMobHistoryStats(dateFrom, dateTo, number);
+        return ResponseEntity.ok(stats);
+    }
+
     @GetMapping("/get-appearance")
     public ResponseEntity<List<YearAndMonthsAppearanceDto>> getAppearance(@RequestParam String plateNumber,
                                                                           @RequestParam String dateFrom,
@@ -56,6 +66,15 @@ public class CarHistoryController {
         List<YearAndMonthsAppearanceDto> results = service.getMonthsAppearance(dateFrom, dateTo, plateNumber);
         return ResponseEntity.ok(results);
     }
+
+    @GetMapping("/get-phone-appearance")
+    public ResponseEntity<List<YearAndMonthsAppearanceDto>> getPhoneAppearance(@RequestParam String number,
+                                                                          @RequestParam String dateFrom,
+                                                                          @RequestParam String dateTo) {
+        List<YearAndMonthsAppearanceDto> results = service.getPhoneMonthsAppearance(dateFrom, dateTo, number);
+        return ResponseEntity.ok(results);
+    }
+
 
     @GetMapping("/get-days")
     public ResponseEntity<List<Date>> getDays(@RequestParam String plateNumber) {
@@ -67,6 +86,12 @@ public class CarHistoryController {
     public ResponseEntity<List<FixationGroupDto>> getDays(@RequestParam String plateNumber,  @RequestParam String date) {
         List<FixationGroupDto> results = service.getGroups(plateNumber, date);
         return ResponseEntity.ok(results);
+    }
+
+    @GetMapping("/get-intersection")
+    public ResponseEntity<List<GenericFixationDto>> getIntersection(@RequestParam String number, @RequestParam String date) {
+        List<GenericFixationDto> result = service.getIntersection(number, date);
+        return ResponseEntity.ok(result);
     }
 
 
